@@ -1,0 +1,46 @@
+{
+  "brier_score": 0.14977485192329132,
+  "bins": [
+    {
+      "mean_predicted_risk": 0.07924665262814075,
+      "observed_positive_rate": 0.02878716375648891
+    },
+    {
+      "mean_predicted_risk": 0.1396078363874296,
+      "observed_positive_rate": 0.02996956216342777
+    },
+    {
+      "mean_predicted_risk": 0.18138723026616327,
+      "observed_positive_rate": 0.03721717064918587
+    },
+    {
+      "mean_predicted_risk": 0.22535663171913597,
+      "observed_positive_rate": 0.050121261115602264
+    },
+    {
+      "mean_predicted_risk": 0.2757506167859883,
+      "observed_positive_rate": 0.060184092518291245
+    },
+    {
+      "mean_predicted_risk": 0.33229646953813574,
+      "observed_positive_rate": 0.07174887892376682
+    },
+    {
+      "mean_predicted_risk": 0.39405398142318393,
+      "observed_positive_rate": 0.07977342459287232
+    },
+    {
+      "mean_predicted_risk": 0.46252121511792726,
+      "observed_positive_rate": 0.09771064432381402
+    },
+    {
+      "mean_predicted_risk": 0.5467238926236229,
+      "observed_positive_rate": 0.1378333726693415
+    },
+    {
+      "mean_predicted_risk": 0.7009482230801019,
+      "observed_positive_rate": 0.26144407739499764
+    }
+  ],
+  "note": "Calibration is assessed on the held-out temporal test snapshot. It is a population-level reliability check, not a consumer-level certainty estimate."
+}

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: electricity-theft-inspection-api
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app:main --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: CORS_ORIGINS
+        sync: false
