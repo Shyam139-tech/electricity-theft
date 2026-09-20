@@ -2,7 +2,7 @@ services:
   - type: web
     name: electricity-theft-inspection-api
     runtime: python
-    buildCommand: pip install -r backend/requirements.txt
+    buildCommand: pip install -r backend/requirements.txt && mkdir -p dataset/processed && curl -fsSL https://raw.githubusercontent.com/Shyam139-tech/electricity-theft/main/dataset/processed/consumption_data.zip -o dataset/processed/consumption_data.zip
     startCommand: uvicorn backend.app:main --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
