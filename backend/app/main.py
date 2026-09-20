@@ -87,7 +87,6 @@ def customer(cons_no: str):
     if record.empty:
         raise HTTPException(status_code=404, detail="Consumer not found")
     response = repository.public_risk_records(record.iloc[:1])[0]
-    response["explanation"] = repository.public_explanation(cons_no)
     try:
         history = repository.consumption_payload(cons_no)
     except RuntimeError:

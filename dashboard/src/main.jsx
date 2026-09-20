@@ -1533,7 +1533,7 @@ function App() {
                   <section className="signals-section">
                     <h3>Risk Signals</h3>
                     <p>Available risk signals</p>
-                    {selected.risk_factors?.length || selected.explanation ? (
+                    {selected.risk_factors?.length ? (
                       <ul className="signal-list">
                         {(selected.risk_factors || []).map((factor) => (
                           <li key={factor.label}>
@@ -1542,25 +1542,6 @@ function App() {
                             <small>Derived from meter history</small>
                           </li>
                         ))}
-                        {[1, 2, 3].map(
-                          (rank) =>
-                            selected.explanation?.[`driver_${rank}`] && (
-                              <li key={rank}>
-                                <span>
-                                  {selected.explanation[
-                                    `driver_${rank}`
-                                  ].replaceAll("_", " ")}
-                                </span>
-                                <strong>
-                                  +
-                                  {Number(
-                                    selected.explanation[`driver_${rank}_shap`],
-                                  ).toFixed(3)}
-                                </strong>
-                                <small>Contributes to model risk</small>
-                              </li>
-                            ),
-                        )}
                       </ul>
                     ) : (
                       <div className="available-signals">
