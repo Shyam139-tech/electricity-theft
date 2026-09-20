@@ -12,6 +12,8 @@ dataset/processed/customer_explanations.csv
 dataset/processed/evaluation_metrics.json
 dataset/processed/calibration_assessment.json
 dataset/processed/shap_global_importance.csv
+dataset/processed/ml_features.csv
+models/theft_model_bundle.pkl
 ```
 
 Also commit `backend/`, `dashboard/`, `src/`, `render.yaml`, `.python-version`, `.gitignore`, and this guide. The frontend calls only the API; it never downloads any CSV directly.
@@ -25,13 +27,12 @@ dataset/data/data.csv
 dataset/data.z01
 dataset/data.z02
 dataset/processed/electricity_cleaned.csv
-dataset/processed/ml_features.csv
 dataset/processed/temporal_test_predictions.csv
 dataset/processed/shap_summary.png
-models/
+models/lightgbm_theft_model.pkl
 ```
 
-The real historical consumption chart requires `dataset/data/data.csv`, which remains local-only. The public deployment serves the compact risk and explanation artifacts, but it must not claim to provide live or verified feeder consumption evidence without the raw meter dataset and an approved utility mapping. ML Risk, Anomaly Signal, Final Risk, and Priority come from the five compact artifacts above.
+The real historical consumption chart requires `dataset/data/data.csv`, which remains local-only. The public deployment serves the compact risk artifacts plus the production model bundle and exact feature table required for on-demand SHAP explanations. It must not claim to provide live or verified feeder consumption evidence without the raw meter dataset and an approved utility mapping.
 
 The source dataset does not provide verified feeder IDs, transformer IDs, neighborhood or region fields, or inspection-event dates. The dashboard reports feeder mapping as unavailable unless `dataset/feeder_mapping.csv` is supplied from a verified utility source. Historical meter readings end on the dataset's final observation date; they are not current usage.
 

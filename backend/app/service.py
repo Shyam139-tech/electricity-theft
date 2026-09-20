@@ -4,11 +4,15 @@ import zipfile
 from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "dataset" / "processed"
 RAW_DATA = ROOT / "dataset" / "data" / "data.csv"
+MODEL_DIR = ROOT / "models"
+MODEL_BUNDLE = MODEL_DIR / "theft_model_bundle.pkl"
+MODEL_FEATURES = PROCESSED / "ml_features.csv"
 DEPLOYED_RAW_DATA = PROCESSED / "consumption_chunks.zip"
 FEEDER_MAPPING = ROOT / "dataset" / "feeder_mapping.csv"
 ID_COL = "CONS_NO"
@@ -27,6 +31,23 @@ REQUIRED_ARTIFACTS = (
     "calibration_assessment.json",
     "shap_global_importance.csv",
 )
+FEATURE_LABELS = {
+    "mean_consumption": "Mean Consumption",
+    "median_consumption": "Median Consumption",
+    "std_consumption": "Consumption Variability",
+    "min_consumption": "Minimum Consumption",
+    "max_consumption": "Maximum Consumption",
+    "missing_rate": "Missing Readings Rate",
+    "missing_count": "Missing Readings Count",
+    "zero_rate": "Zero Consumption Rate",
+    "early_mean": "Early Consumption Pattern",
+    "recent_mean": "Recent Consumption Pattern",
+    "consumption_change": "Recent Consumption Change",
+    "first_half_mean": "First-Half Consumption",
+    "second_half_mean": "Second-Half Consumption",
+    "long_term_change": "Long-Term Consumption Decline",
+    "seasonal_std": "Seasonal Consumption Variability",
+}
 
 
 class RiskRepository:
@@ -36,6 +57,9 @@ class RiskRepository:
         self.metrics = {}
         self.calibration = {}
         self.importance = pd.DataFrame()
+        self.model_bundle = None
+        self.model_features = pd.DataFrame()
+        self._shap_explainer = None
         self.mapping = pd.DataFrame(columns=[ID_COL, "FEEDER_ID", "TRANSFORMER_ID", "AREA"])
         self.mapping_available = False
         self._raw = None
@@ -60,7 +84,19 @@ class RiskRepository:
         )
         self.explanations = pd.read_csv(PROCESSED / "customer_explanations.csv")
         self.importance = pd.read_csv(PROCESSED / "shap_global_importance.csv")
+        if MODEL_BUNDLE.is_file() and MODEL_FEATURES.is_file():
+            import joblib
+
+            self.model_bundle = joblib.load(MODEL_BUNDLE)
+            self.model_features = pd.read_csv(MODEL_FEATURES)
+        else:
+            LOGGER.warning(
+                "On-demand SHAP unavailable: %s and %s must be deployed together.",
+                MODEL_BUNDLE.name,
+                MODEL_FEATURES.name,
+            )
         self.risk[ID_COL] = self.risk[ID_COL].map(self._normalise_id)
+        self.model_features[ID_COL] = self.model_features[ID_COL].map(self._normalise_id)
         self._load_mapping()
 
     @staticmethod
@@ -286,6 +322,68 @@ class RiskRepository:
             if column.startswith("driver_")
         ]
         return {column: row[column] for column in driver_columns}
+
+    @staticmethod
+    def _feature_label(name: str) -> str:
+        return FEATURE_LABELS.get(name, name.replace("_", " ").title())
+
+    def consumer_shap_explanation(self, cons_no: str) -> dict:
+        """Explain this consumer's persisted production-model feature vector."""
+        if self.model_bundle is None or self.model_features.empty:
+            raise RuntimeError("The production model artifacts are unavailable.")
+
+        columns = list(self.model_bundle["feature_columns"])
+        record = self.model_features[self.model_features[ID_COL] == cons_no]
+        if record.empty:
+            raise KeyError(f"Consumer {cons_no} has no model feature row.")
+        feature_row = record[columns].copy()
+        medians = pd.Series(self.model_bundle.get("imputation_medians", {}))
+        feature_row = feature_row.apply(pd.to_numeric, errors="coerce").fillna(medians).fillna(0)
+        feature_row = feature_row[columns]
+
+        if self._shap_explainer is None:
+            import shap
+
+            background = self.model_features[columns].apply(pd.to_numeric, errors="coerce")
+            background = background.fillna(medians).fillna(0).sample(
+                n=min(256, len(background)), random_state=42
+            )
+            self._shap_explainer = shap.TreeExplainer(
+                self.model_bundle["model"],
+                data=background,
+                feature_perturbation="interventional",
+                model_output="probability",
+            )
+
+        values = self._shap_explainer.shap_values(feature_row, check_additivity=False)
+        if isinstance(values, list):
+            values = values[-1]
+        values = pd.Series(values[0], index=columns, dtype="float64")
+        prediction = float(self.model_bundle["model"].predict_proba(feature_row)[0, 1])
+        base_value = self._shap_explainer.expected_value
+        if isinstance(base_value, (list, tuple, np.ndarray)):
+            base_value = np.asarray(base_value).reshape(-1)[-1]
+        base_value = float(base_value)
+        if not np.isclose(base_value + values.sum(), prediction, atol=2e-4):
+            raise RuntimeError("SHAP values do not reconcile with the model probability.")
+
+        ranked = values.abs().sort_values(ascending=False).head(8).index
+        return {
+            "consumerId": cons_no,
+            "baseValue": base_value,
+            "prediction": prediction,
+            "modelVersion": self.model_bundle.get("model_version"),
+            "features": [
+                {
+                    "name": self._feature_label(name),
+                    "featureName": name,
+                    "featureValue": float(feature_row.iloc[0][name]),
+                    "shapValue": float(values[name]),
+                    "direction": "increases_risk" if values[name] >= 0 else "decreases_risk",
+                }
+                for name in ranked
+            ],
+        }
 
 
 repository = RiskRepository()

@@ -37,6 +37,9 @@ tmp/
 !/dataset/processed/calibration_assessment.json
 !/dataset/processed/shap_global_importance.csv
 !/dataset/processed/demo_scenarios.json
+!/dataset/processed/ml_features.csv
 
-# Models and full feature/evaluation artifacts are not used by the deployed API.
-/models/
+# The deployed API uses this production bundle for on-demand SHAP explanations.
+/models/*
+!/models/
+!/models/theft_model_bundle.pkl

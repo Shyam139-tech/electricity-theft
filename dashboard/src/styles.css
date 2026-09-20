@@ -138,6 +138,7 @@ tbody tr:last-child td{border-bottom:0}
 .signal-list li span{color:#37536f;font-size:13px;text-transform:capitalize}
 .signal-list li strong{color:#26745d;font-size:12px}
 .signal-list li small{grid-column:1/-1;color:#8998a9;font-size:11px}
+.model-explanation{padding-top:2px}.shap-list{display:grid;gap:15px}.shap-row{display:grid;gap:6px}.shap-label{display:flex;align-items:center;justify-content:space-between;gap:12px}.shap-label span{color:#37536f;font-size:13px}.shap-label strong{font-size:12px}.shap-track{height:8px;overflow:hidden;border-radius:999px;background:#eaf0f5}.shap-track span{display:block;height:100%;border-radius:inherit}.shap-positive{color:#24775e}.shap-negative{color:#a4494c}.shap-track .shap-positive{background:#55a985}.shap-track .shap-negative{background:#d27979}.shap-row small{font-size:11px}.shap-disclaimer{margin:16px 0 0!important;color:#7b8da1!important;line-height:1.55}
 .available-signals{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .available-signals>div{padding:12px;border:1px solid #e6edf4;border-radius:9px}
 .available-signals span{display:block;color:#77899e;font-size:11px}

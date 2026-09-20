@@ -108,6 +108,16 @@ def customer_consumption(cons_no: str):
     return history
 
 
+@app.get("/api/customers/{cons_no}/explanation", tags=["dashboard"])
+def customer_explanation(cons_no: str):
+    try:
+        return repository.consumer_shap_explanation(cons_no)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Consumer explanation not found")
+    except Exception:
+        raise HTTPException(status_code=503, detail="Model explanation is currently unavailable.")
+
+
 @app.get("/api/metrics", tags=["analytics"])
 def metrics():
     return repository.metrics
