@@ -8,6 +8,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "dataset" / "processed"
 RAW_DATA = ROOT / "dataset" / "data" / "data.csv"
+DEPLOYED_RAW_DATA = PROCESSED / "consumption_data.zip"
 FEEDER_MAPPING = ROOT / "dataset" / "feeder_mapping.csv"
 ID_COL = "CONS_NO"
 LOGGER = logging.getLogger(__name__)
@@ -109,19 +110,21 @@ class RiskRepository:
 
     @lru_cache(maxsize=1)
     def _raw_consumer_ids(self) -> set[str]:
-        if not RAW_DATA.is_file():
-            LOGGER.warning("Raw meter data unavailable: %s was not found.", RAW_DATA)
+        data_path = RAW_DATA if RAW_DATA.is_file() else DEPLOYED_RAW_DATA
+        if not data_path.is_file():
+            LOGGER.warning("Raw meter data unavailable: neither %s nor %s was found.", RAW_DATA, DEPLOYED_RAW_DATA)
             return set()
-        ids = pd.read_csv(RAW_DATA, usecols=[ID_COL], dtype={ID_COL: str})[ID_COL]
+        ids = pd.read_csv(data_path, usecols=[ID_COL], dtype={ID_COL: str}, compression="zip" if data_path == DEPLOYED_RAW_DATA else "infer")[ID_COL]
         return set(ids.map(self._normalise_id))
 
     def _ensure_raw(self):
         """Cache the raw readings once on first history request, never in the browser."""
         if self._raw is not None:
             return
-        if not RAW_DATA.is_file():
+        data_path = RAW_DATA if RAW_DATA.is_file() else DEPLOYED_RAW_DATA
+        if not data_path.is_file():
             raise RuntimeError("Raw meter data is unavailable.")
-        raw = pd.read_csv(RAW_DATA, dtype={ID_COL: str})
+        raw = pd.read_csv(data_path, dtype={ID_COL: str}, compression="zip" if data_path == DEPLOYED_RAW_DATA else "infer")
         raw[ID_COL] = raw[ID_COL].map(self._normalise_id)
         self._reading_columns = [
             column for column in raw.columns
