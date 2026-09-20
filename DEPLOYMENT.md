@@ -31,7 +31,9 @@ dataset/processed/shap_summary.png
 models/
 ```
 
-The deployed API does not load models or feature matrices. It needs only the five compact artifacts listed above. The local-only consumption chart reads `dataset/data/data.csv` on demand; since that raw CSV is deliberately excluded from public deployment, the chart gracefully reports that history is unavailable in the public environment.
+The real historical consumption chart requires `dataset/data/data.csv`, which remains local-only. The public deployment serves the compact risk and explanation artifacts, but it must not claim to provide live or verified feeder consumption evidence without the raw meter dataset and an approved utility mapping. ML Risk, Anomaly Signal, Final Risk, and Priority come from the five compact artifacts above.
+
+The source dataset does not provide verified feeder IDs, transformer IDs, neighborhood or region fields, or inspection-event dates. The dashboard reports feeder mapping as unavailable unless `dataset/feeder_mapping.csv` is supplied from a verified utility source. Historical meter readings end on the dataset's final observation date; they are not current usage.
 
 ## C. Frontend deployment: Vercel
 

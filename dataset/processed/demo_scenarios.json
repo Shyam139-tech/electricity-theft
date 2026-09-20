@@ -1,0 +1,24 @@
+{
+  "note": "Synthetic demonstration meter histories generated on demand. Not real utility readings. Risk scores still come from published LightGBM + IsolationForest artifacts.",
+  "history_days": 150,
+  "consumers": {
+    "A": {
+      "CONS_NO": "68DD9010B1BC41F2E6F0524FB66C62AC",
+      "pattern": "normal",
+      "expected_priority": "LOW",
+      "label": "Normal consumption"
+    },
+    "B": {
+      "CONS_NO": "365301A95B5FED7AA6ED1267818F2F6F",
+      "pattern": "gradual_decline",
+      "expected_priority": "MEDIUM",
+      "label": "Gradual consumption decline while feeder remains stable"
+    },
+    "C": {
+      "CONS_NO": "57531380F73D67943259F07E12498E1A",
+      "pattern": "decline_missing_feeder",
+      "expected_priority": "HIGH",
+      "label": "Abnormal consumption, missing readings, and feeder deviation"
+    }
+  }
+}

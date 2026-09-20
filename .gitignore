@@ -36,6 +36,7 @@ tmp/
 !/dataset/processed/evaluation_metrics.json
 !/dataset/processed/calibration_assessment.json
 !/dataset/processed/shap_global_importance.csv
+!/dataset/processed/demo_scenarios.json
 
 # Models and full feature/evaluation artifacts are not used by the deployed API.
 /models/

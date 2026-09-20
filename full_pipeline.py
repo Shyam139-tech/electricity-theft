@@ -11,6 +11,7 @@ from src.pipeline_utils import (
     ID_COL, TARGET_COL, apply_imputation, build_features, calibration_assessment, evaluate_binary,
     feature_columns, get_consumption_columns, write_json,
 )
+from src.risk_config import ANOMALY_WEIGHT, ML_WEIGHT, review_priority as priority
 
 INPUT_FILE = "dataset/data/data.csv"
 OUTPUT_DIR = Path("dataset/processed")
@@ -27,10 +28,6 @@ def make_model():
         num_leaves=31, max_depth=-1, subsample=0.8, colsample_bytree=0.8,
         class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1,
     )
-
-
-def priority(score):
-    return "HIGH" if score >= 0.70 else "MEDIUM" if score >= 0.40 else "LOW"
 
 
 def select_threshold(y_true, probabilities):
@@ -113,7 +110,7 @@ ml_probability = production_model.predict_proba(production_features[columns])[:,
 published = production_features[[ID_COL, TARGET_COL]].copy()
 published["ml_risk_probability"] = ml_probability
 published["anomaly_score"] = anomaly_score
-published["final_risk_score"] = 0.70 * ml_probability + 0.30 * anomaly_score
+published["final_risk_score"] = ML_WEIGHT * ml_probability + ANOMALY_WEIGHT * anomaly_score
 published["review_priority"] = published["final_risk_score"].map(priority)
 published.sort_values("final_risk_score", ascending=False).to_csv(OUTPUT_DIR / "risk_results.csv", index=False)
 production_features.to_csv(OUTPUT_DIR / "ml_features.csv", index=False)

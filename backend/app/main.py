@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from .service import read_consumer_consumption, repository
+from .service import repository
 
 
 def cors_origins() -> list[str]:
@@ -49,6 +49,7 @@ def health():
         "status": "ok",
         "customers_loaded": len(repository.risk),
         "mode": "precomputed-artifacts",
+        "consumption": "raw-meter-data",
     }
 
 
@@ -63,6 +64,7 @@ def inspections(
     query: str | None = Query(None, max_length=100),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    randomize: bool = Query(False),
 ):
     rows = repository.risk
     if priority:
@@ -73,6 +75,8 @@ def inspections(
                 query, case=False, na=False, regex=False
             )
         ]
+    if randomize:
+        rows = rows.sample(frac=1)
     page = rows.iloc[offset: offset + limit]
     return {"total": len(rows), "items": repository.public_risk_records(page)}
 
@@ -84,20 +88,20 @@ def customer(cons_no: str):
         raise HTTPException(status_code=404, detail="Consumer not found")
     response = repository.public_risk_records(record.iloc[:1])[0]
     response["explanation"] = repository.public_explanation(cons_no)
+    history = repository.consumption_payload(cons_no)
+    if history:
+        response["feeder"] = history["feeder"]
+        response["risk_factors"] = history["risk_factors"]
+    else:
+        response["feeder"] = repository._feeder_context(cons_no)
     return response
 
 
 @app.get("/api/customers/{cons_no}/consumption", tags=["dashboard"])
 def customer_consumption(cons_no: str):
-    """Local-only optional history: raw data is deliberately excluded from deployment."""
-    if repository.risk.empty or not (repository.risk["CONS_NO"].astype(str) == cons_no).any():
-        raise HTTPException(status_code=404, detail="Consumer not found")
-    history = read_consumer_consumption(cons_no)
+    history = repository.consumption_payload(cons_no)
     if history is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Consumption history is unavailable in this deployment.",
-        )
+        raise HTTPException(status_code=404, detail="Consumer not found")
     return history
 
 

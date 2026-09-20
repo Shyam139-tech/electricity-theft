@@ -5,7 +5,16 @@ export async function api(path) {
     throw new Error("VITE_API_URL is not configured.");
   }
 
-  const response = await fetch(`${BASE_URL}${path}`);
-  if (!response.ok) throw new Error(`API error ${response.status}`);
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`);
+  } catch (error) {
+    console.error(`API request failed: ${path}`, error);
+    throw new Error("Unable to reach the inspection API. Check that it is running.");
+  }
+  if (!response.ok) {
+    console.error(`API request failed: ${path} (HTTP ${response.status})`);
+    throw new Error(`The inspection API returned HTTP ${response.status}.`);
+  }
   return response.json();
 }
