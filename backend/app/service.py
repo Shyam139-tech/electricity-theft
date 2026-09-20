@@ -1,5 +1,6 @@
 import json
 import logging
+import zipfile
 from functools import lru_cache
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "dataset" / "processed"
 RAW_DATA = ROOT / "dataset" / "data" / "data.csv"
-DEPLOYED_RAW_DATA = PROCESSED / "consumption_data.zip"
+DEPLOYED_RAW_DATA = PROCESSED / "consumption_chunks.zip"
 FEEDER_MAPPING = ROOT / "dataset" / "feeder_mapping.csv"
 ID_COL = "CONS_NO"
 LOGGER = logging.getLogger(__name__)
@@ -110,12 +111,34 @@ class RiskRepository:
 
     @lru_cache(maxsize=1)
     def _raw_consumer_ids(self) -> set[str]:
-        data_path = RAW_DATA if RAW_DATA.is_file() else DEPLOYED_RAW_DATA
-        if not data_path.is_file():
-            LOGGER.warning("Raw meter data unavailable: neither %s nor %s was found.", RAW_DATA, DEPLOYED_RAW_DATA)
-            return set()
-        ids = pd.read_csv(data_path, usecols=[ID_COL], dtype={ID_COL: str}, compression="zip" if data_path == DEPLOYED_RAW_DATA else "infer")[ID_COL]
-        return set(ids.map(self._normalise_id))
+        if RAW_DATA.is_file():
+            ids = pd.read_csv(RAW_DATA, usecols=[ID_COL], dtype={ID_COL: str})[ID_COL]
+            return set(ids.map(self._normalise_id))
+        return set(self._chunk_index())
+
+    @lru_cache(maxsize=1)
+    def _chunk_index(self) -> dict[str, str]:
+        if not DEPLOYED_RAW_DATA.is_file():
+            LOGGER.warning("Deployed meter archive unavailable: %s was not found.", DEPLOYED_RAW_DATA)
+            return {}
+        with zipfile.ZipFile(DEPLOYED_RAW_DATA) as archive:
+            return json.loads(archive.read("index.json"))
+
+    def _deployed_consumer_row(self, cons_no: str):
+        chunk_name = self._chunk_index().get(cons_no)
+        if not chunk_name:
+            return None
+        with zipfile.ZipFile(DEPLOYED_RAW_DATA) as archive, archive.open(chunk_name) as stream:
+            chunk = pd.read_csv(stream, dtype={ID_COL: str})
+        chunk[ID_COL] = chunk[ID_COL].map(self._normalise_id)
+        if not self._reading_columns:
+            self._reading_columns = [
+                column for column in chunk.columns
+                if column != ID_COL and column != "FLAG" and not pd.isna(pd.to_datetime(column, errors="coerce"))
+            ]
+            self._reading_columns.sort(key=lambda column: pd.to_datetime(column))
+        record = chunk[chunk[ID_COL] == cons_no]
+        return None if record.empty else record.iloc[0]
 
     def _ensure_raw(self):
         """Cache the raw readings once on first history request, never in the browser."""
@@ -212,10 +235,16 @@ class RiskRepository:
         record = self.risk[self.risk[ID_COL].astype(str) == cons_no]
         if record.empty:
             return None
-        self._ensure_raw()
-        if cons_no not in self._raw.index:
-            return None
-        values = pd.to_numeric(self._raw.loc[cons_no, self._reading_columns], errors="coerce")
+        if RAW_DATA.is_file():
+            self._ensure_raw()
+            if cons_no not in self._raw.index:
+                return None
+            values = pd.to_numeric(self._raw.loc[cons_no, self._reading_columns], errors="coerce")
+        else:
+            deployed_record = self._deployed_consumer_row(cons_no)
+            if deployed_record is None:
+                return None
+            values = pd.to_numeric(deployed_record[self._reading_columns], errors="coerce")
         feeder = self._feeder_context(cons_no, values)
         profile = self._feeder_profiles.get(feeder["feeder_id"])
         feeder_values = profile["by_date"] if profile else None
